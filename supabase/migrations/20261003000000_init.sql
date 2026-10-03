@@ -3,8 +3,9 @@
 -- The MCP server and crawler use the service role (which bypasses RLS) and always
 -- filter by tenant_id explicitly; RLS protects any future dashboard access via the anon key.
 
-create extension if not exists vector;
-create extension if not exists pgcrypto;
+-- Supabase keeps extensions in their own schema
+create extension if not exists vector with schema extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 -- Plans map to the three tiers: read (Starter), measure (Growth), manage (Pro)
 create type plan_tier as enum ('starter', 'growth', 'pro');
@@ -110,7 +111,7 @@ returns table (
   similarity float
 )
 language sql stable
-set search_path = public
+set search_path = public, extensions
 as $$
   select c.page_id, p.url, p.title, c.heading, c.content,
          1 - (c.embedding <=> p_query_embedding) as similarity
@@ -150,4 +151,5 @@ create policy api_keys_member_read on api_keys for select using (is_tenant_membe
 create policy tool_calls_member_read on tool_calls for select using (is_tenant_member(tenant_id));
 
 -- match_chunks is only called server-side with the service role
-revoke execute on function match_chunks(uuid, vector, int) from anon, authenticated;
+revoke execute on function match_chunks(uuid, vector, int) from public, anon, authenticated;
+grant execute on function match_chunks(uuid, vector, int) to service_role;
