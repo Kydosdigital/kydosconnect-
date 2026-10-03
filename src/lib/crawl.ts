@@ -92,11 +92,28 @@ export function htmlToPage(html: string, url: string): CrawledPage & { links: st
     if (u) links.push(u);
   });
 
-  $("script, style, noscript, iframe, svg, form, nav, [role=navigation], [aria-hidden=true], .cookie, #cookie-notice").remove();
+  $(
+    "script, style, noscript, iframe, svg, form, nav, header, [role=navigation], [role=banner], [aria-hidden=true], .cookie, #cookie-notice",
+  ).remove();
   const root = $("main").first().length ? $("main").first() : $("body");
 
   const lines: string[] = [];
-  const text = (el: AnyNode) => $(el).text().replace(/\s+/g, " ").trim();
+  // Join text from separate elements with spaces, so "<a>Work</a><a>Services</a>" reads "Work Services"
+  const BLOCKISH = /^(a|li|p|div|span|td|th|br|h[1-6]|button|label|strong|em|b|i)$/;
+  const text = (el: AnyNode): string => {
+    const parts: string[] = [];
+    const visit = (n: AnyNode) => {
+      if (n.type === "text") parts.push((n as unknown as { data: string }).data);
+      else if (n.type === "tag") {
+        const e = n as Element;
+        if (BLOCKISH.test(e.tagName.toLowerCase())) parts.push(" ");
+        for (const c of e.children) visit(c);
+        if (BLOCKISH.test(e.tagName.toLowerCase())) parts.push(" ");
+      }
+    };
+    visit(el);
+    return parts.join("").replace(/\s+/g, " ").replace(/\s+([.,;:!?)])/g, "$1").trim();
+  };
 
   const walk = (node: AnyNode) => {
     if (node.type !== "tag") return;

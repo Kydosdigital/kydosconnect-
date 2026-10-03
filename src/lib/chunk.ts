@@ -42,7 +42,32 @@ export function chunkMarkdown(markdown: string, pageTitle?: string | null): Chun
     }
     if (buffer) chunks.push({ heading: section.heading, content: buffer });
   }
-  return chunks;
+  return mergeSmall(chunks);
+}
+
+const MIN_CHARS = 120;
+
+/**
+ * Fold fragments ("01", a lone button label, a one-line heading body) into the
+ * previous passage, or the next one when there is none, so every passage carries meaning.
+ */
+function mergeSmall(chunks: Chunk[]): Chunk[] {
+  const out: Chunk[] = [];
+  for (const c of chunks) {
+    const prev = out.at(-1);
+    if (prev && c.content.length < MIN_CHARS && prev.content.length + c.content.length < MAX_CHARS) {
+      const label = c.heading && c.heading !== prev.heading ? `${c.heading}: ` : "";
+      prev.content = `${prev.content}\n\n${label}${c.content}`;
+    } else {
+      out.push({ ...c });
+    }
+  }
+  // A small first passage joins the one after it
+  if (out.length > 1 && out[0].content.length < MIN_CHARS) {
+    const [first, second] = out;
+    out.splice(0, 2, { heading: first.heading, content: `${first.content}\n\n${second.content}` });
+  }
+  return out;
 }
 
 function splitLong(text: string): string[] {

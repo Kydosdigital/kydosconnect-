@@ -44,12 +44,35 @@ export async function ingestSite(siteId: string): Promise<IngestResult> {
     let pagesChanged = 0;
     let chunksWritten = 0;
 
-    for (const page of crawled) {
-      const hash = sha256(page.markdown);
+    // Chunk every page first, so blocks repeated across the site (footers, calls to action,
+    // menus) can be kept once, on the first page they appear, instead of on every page.
+    const chunked = crawled.map((page) => ({ page, chunks: chunkMarkdown(page.markdown, page.title) }));
+    const pagesWith = new Map<string, number>();
+    const firstPage = new Map<string, string>();
+    for (const { page, chunks } of chunked) {
+      for (const content of new Set(chunks.map((c) => c.content))) {
+        pagesWith.set(content, (pagesWith.get(content) ?? 0) + 1);
+        if (!firstPage.has(content)) firstPage.set(content, page.url);
+      }
+    }
+    const REPEATED_ON = 3;
+
+    for (const { page, chunks: all } of chunked) {
+      const seenHere = new Set<string>();
+      const chunks = all.filter((c) => {
+        if (seenHere.has(c.content)) return false;
+        seenHere.add(c.content);
+        return (pagesWith.get(c.content) ?? 0) < REPEATED_ON || firstPage.get(c.content) === page.url;
+      });
+
+      // The hash covers what is actually indexed, so a change in kept passages triggers a rewrite
+      const hash = sha256(`${page.title ?? ""}\n${chunks.map((c) => c.content).join("\n")}`);
       const prior = existingByUrl.get(page.url);
       existingByUrl.delete(page.url);
       if (prior && prior.content_hash === hash) continue;
 
+      // Saved with an empty hash until its passages are stored: if anything fails part-way,
+      // the next crawl redoes this page instead of skipping it as unchanged
       const { data: saved, error: upsertError } = await supabase
         .from("pages")
         .upsert(
@@ -60,7 +83,7 @@ export async function ingestSite(siteId: string): Promise<IngestResult> {
             title: page.title,
             description: page.description,
             markdown: page.markdown,
-            content_hash: hash,
+            content_hash: "",
             updated_at: new Date().toISOString(),
           },
           { onConflict: "site_id,url" },
@@ -69,7 +92,6 @@ export async function ingestSite(siteId: string): Promise<IngestResult> {
         .single();
       if (upsertError || !saved) throw new Error(`Failed to save ${page.url}: ${upsertError?.message}`);
 
-      const chunks = chunkMarkdown(page.markdown, page.title);
       const vectors = await embed(chunks.map((c) => embeddingText(c, page.title)));
 
       await supabase.from("chunks").delete().eq("page_id", saved.id);
@@ -86,6 +108,7 @@ export async function ingestSite(siteId: string): Promise<IngestResult> {
         );
         if (chunkError) throw new Error(`Failed to save chunks for ${page.url}: ${chunkError.message}`);
       }
+      await supabase.from("pages").update({ content_hash: hash }).eq("id", saved.id);
       pagesChanged += 1;
       chunksWritten += chunks.length;
     }
