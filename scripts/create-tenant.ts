@@ -10,6 +10,7 @@ import { parseArgs } from "node:util";
 import { db } from "../src/lib/db";
 import { generateKey } from "../src/lib/auth";
 import { ingestSite } from "../src/lib/ingest";
+import { appUrl } from "../src/lib/env";
 
 async function main() {
   const { values } = parseArgs({
@@ -48,7 +49,7 @@ async function main() {
     .insert({ tenant_id: tenant.id, label: "default", key_prefix: key.prefix, key_hash: key.hash });
   if (keyError) throw new Error(`Could not create key: ${keyError.message}`);
 
-  const base = process.env.APP_URL ?? "http://localhost:3000";
+  const base = appUrl();
   console.log("\nTenant created.");
   console.log(`  MCP URL:  ${base}/api/mcp/${tenant.slug}`);
   console.log(`  Key:      ${key.raw}   (shown once, store it safely)`);

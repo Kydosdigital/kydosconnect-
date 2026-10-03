@@ -32,7 +32,12 @@ export function publicEnv(): { url: string; anonKey: string } {
   return { url, anonKey };
 }
 
-/** Base URL used in connection instructions. */
+/**
+ * Base URL used in connection instructions: APP_URL if set (e.g. a custom
+ * domain), otherwise the production domain Vercel provides automatically.
+ */
 export function appUrl(): string {
-  return (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return "http://localhost:3000";
 }
