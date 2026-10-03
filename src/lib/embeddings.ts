@@ -4,8 +4,9 @@ import { env } from "./env";
 export const EMBEDDING_MODEL = "gte-small";
 export const EMBEDDING_DIMENSIONS = 384;
 
-const BATCH_SIZE = 16; // the function's per-request limit
-const PARALLEL = 3;
+// Each Edge Function call has a small CPU budget, so send a few texts per call and run calls side by side
+const BATCH_SIZE = 4;
+const PARALLEL = 4;
 
 async function embedBatch(inputs: string[], attempt = 1): Promise<number[][]> {
   const key = env("SUPABASE_SERVICE_ROLE_KEY");
@@ -16,9 +17,9 @@ async function embedBatch(inputs: string[], attempt = 1): Promise<number[][]> {
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {
-    // Cold starts and brief overloads are retried a couple of times
-    if (attempt < 3 && (res.status >= 500 || res.status === 429)) {
-      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    // Cold starts, brief overloads and compute limits (546) are retried a few times
+    if (attempt < 4 && (res.status >= 500 || res.status === 429)) {
+      await new Promise((r) => setTimeout(r, 800 * attempt));
       return embedBatch(inputs, attempt + 1);
     }
     throw new Error(`Embedding failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
