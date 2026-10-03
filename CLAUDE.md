@@ -19,7 +19,8 @@ Current phase: **Phase 1 (Read)**. Do not build Growth or Pro tools unless asked
 - Next.js 16 App Router, TypeScript (strict), deployed on Vercel
 - Supabase: Postgres + pgvector, Auth, Vault (for client credentials later)
 - MCP: `@modelcontextprotocol/sdk` 1.x, `WebStandardStreamableHTTPServerTransport`, **stateless** (new server per request)
-- Embeddings: OpenAI `text-embedding-3-small`, 1536 dimensions
+- Embeddings: Supabase's built-in `gte-small` (384 dimensions) via the `embed` Edge Function (`supabase/functions/embed`). No OpenAI key. The function only accepts the service role key.
+- Search: `search_chunks` SQL function, hybrid of vector similarity and English full-text search (reciprocal rank fusion), always scoped to one tenant
 - Crawling: built-in fetch + cheerio crawler; Firecrawl if `FIRECRAWL_API_KEY` is set
 - Zod v4 for tool input schemas
 
@@ -28,6 +29,7 @@ Current phase: **Phase 1 (Read)**. Do not build Growth or Pro tools unless asked
 ```
 src/app/api/mcp/[tenant]/route.ts   MCP endpoint, one URL per tenant slug
 src/app/api/crawl/route.ts          Admin: re-crawl a site (ADMIN_SECRET bearer)
+src/app/api/cron/recrawl/route.ts   Nightly Vercel Cron (CRON_SECRET): re-reads sites older than a week, releases stuck crawls
 src/mcp/server.ts                   Tool definitions, plan gating, call logging
 src/lib/auth.ts                     MCP key generation, hashing, tenant lookup
 src/lib/crawl.ts                    Site discovery (sitemap, links, robots.txt) and HTML to markdown
@@ -35,6 +37,7 @@ src/lib/chunk.ts                    Heading-aware chunking
 src/lib/ingest.ts                   Crawl, diff by content hash, embed, store
 src/lib/db.ts                       Service-role Supabase client
 supabase/migrations/                SQL migrations (source of truth for the schema)
+supabase/functions/embed/           Deno Edge Function for embeddings (excluded from the Next.js type check)
 scripts/                            CLI: create-tenant, crawl
 ```
 
@@ -74,11 +77,17 @@ Scripts read `.env.local` (copy `.env.example`).
 - `BusinessView` is presentational (no data fetching); `dashboard/[slug]/page.tsx` loads data and passes it in.
 - Design tokens live in `src/app/globals.css`. System font stack only (Stephen prefers standard fonts, no web fonts); system monospace only inside copy fields for keys and URLs. Signal green means "live"; cobalt is for actions. The connection "wire" is the one bold element: keep everything else quiet.
 
-## Next up (Sprint 1 remainder)
+## Production
 
-- Weekly re-crawl via Vercel Cron
-- Agency view: Kydos staff see all client businesses
-- 10 test questions per pilot site, record accuracy
+- Vercel project `kydosconnect-` (team kydosdigitals-projects), live at https://kydosconnect.vercel.app, functions pinned to Dublin (`dub1`) next to the database
+- Supabase project `nfnyenhtgfbblyopzgsq` ("Kydos connect", eu-west-1). Supabase env vars come from the Vercel integration
+- Extra Vercel env: `ADMIN_SECRET`, `CRON_SECRET`, `AGENCY_EMAILS` (Kydos staff who see every business)
+- Migrations that drop objects need a manual confirmation in the Supabase tool; prefer `alter`/`revoke` over `drop`
+
+## Next up
+
+- Run the 10-question accuracy check on two pilot client sites
+- Phase 2 (Measure): GA4 connection, traffic tools, enquiries, monthly report
 
 <!-- BEGIN:nextjs-agent-rules -->
 

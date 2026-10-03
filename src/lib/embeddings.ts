@@ -1,32 +1,43 @@
-import OpenAI from "openai";
 import { env } from "./env";
 
-export const EMBEDDING_MODEL = "text-embedding-3-small";
-export const EMBEDDING_DIMENSIONS = 1536;
+/** Supabase's built-in gte-small model, served by the `embed` Edge Function. */
+export const EMBEDDING_MODEL = "gte-small";
+export const EMBEDDING_DIMENSIONS = 384;
 
-let openai: OpenAI | null = null;
-function client(): OpenAI {
-  if (!openai) openai = new OpenAI({ apiKey: env("OPENAI_API_KEY") });
-  return openai;
+const BATCH_SIZE = 16; // the function's per-request limit
+const PARALLEL = 3;
+
+async function embedBatch(inputs: string[], attempt = 1): Promise<number[][]> {
+  const key = env("SUPABASE_SERVICE_ROLE_KEY");
+  const res = await fetch(`${env("SUPABASE_URL")}/functions/v1/embed`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({ inputs }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) {
+    // Cold starts and brief overloads are retried a couple of times
+    if (attempt < 3 && (res.status >= 500 || res.status === 429)) {
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+      return embedBatch(inputs, attempt + 1);
+    }
+    throw new Error(`Embedding failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { embeddings: number[][] };
+  return json.embeddings;
 }
 
-/** Embed a batch of texts, preserving input order. */
+/** Embed many texts, preserving input order. */
 export async function embed(texts: string[]): Promise<number[][]> {
-  if (texts.length === 0) return [];
-  const out: number[][] = [];
-  const batchSize = 96;
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
-    const res = await client().embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: batch,
-      dimensions: EMBEDDING_DIMENSIONS,
-    });
-    for (const item of res.data.sort((a, b) => a.index - b.index)) {
-      out.push(item.embedding);
-    }
+  const batches: string[][] = [];
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) batches.push(texts.slice(i, i + BATCH_SIZE));
+  const results: number[][][] = new Array(batches.length);
+  for (let i = 0; i < batches.length; i += PARALLEL) {
+    const group = batches.slice(i, i + PARALLEL);
+    const out = await Promise.all(group.map((b) => embedBatch(b)));
+    out.forEach((r, j) => (results[i + j] = r));
   }
-  return out;
+  return results.flat();
 }
 
 export async function embedOne(text: string): Promise<number[]> {

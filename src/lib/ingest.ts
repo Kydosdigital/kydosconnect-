@@ -27,7 +27,10 @@ export async function ingestSite(siteId: string): Promise<IngestResult> {
     .single();
   if (error || !site) throw new Error(`Site not found: ${siteId}`);
 
-  await supabase.from("sites").update({ crawl_status: "crawling", last_error: null }).eq("id", site.id);
+  await supabase
+    .from("sites")
+    .update({ crawl_status: "crawling", crawl_started_at: new Date().toISOString(), last_error: null })
+    .eq("id", site.id);
 
   try {
     const crawled = await crawlSite(site.url, { maxPages: site.max_pages });

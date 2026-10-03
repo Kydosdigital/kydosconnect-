@@ -1,8 +1,8 @@
 const required = [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
-  "OPENAI_API_KEY",
   "ADMIN_SECRET",
+  "CRON_SECRET",
 ] as const;
 
 type RequiredKey = (typeof required)[number];

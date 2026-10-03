@@ -8,17 +8,19 @@ Kydos Connect crawls a business website, indexes it, and serves it as an [MCP](h
 
 Phase 1 (Read tier) foundation:
 
-- [x] Multi-tenant schema with row-level security and pgvector search
+- [x] Multi-tenant schema with row-level security
+- [x] Hybrid search (meaning plus keywords) with Supabase's built-in embeddings, no OpenAI key needed
 - [x] Crawler: sitemap and link discovery, robots.txt, HTML to markdown, optional Firecrawl
 - [x] Incremental ingestion: unchanged pages skipped by content hash
 - [x] Stateless MCP endpoint per tenant with `search_site`, `get_page`, `list_pages`, `get_business_info`
 - [x] Hashed API keys and per-call logging
 - [x] Client dashboard: sign in, add a business, connect instructions, AI activity, business details
-- [ ] Scheduled re-crawls
+- [x] Nightly job re-reads each website weekly
+- [x] Agency view: Kydos staff see every client business
 
 ## Getting started
 
-1. Create a Supabase project and run the migration in `supabase/migrations/` (SQL editor, or `supabase db push`).
+1. Create a Supabase project, run the migrations in `supabase/migrations/` in order, and deploy the `embed` function in `supabase/functions/`.
 2. `cp .env.example .env.local` and fill in the values.
 3. Install and run:
 

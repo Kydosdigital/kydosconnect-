@@ -194,31 +194,43 @@ export async function crawlSite(startUrl: string, opts: CrawlOptions = {}): Prom
   const seen = new Set<string>();
   const pages: CrawledPage[] = [];
   const seenHashes = new Set<string>();
+  const CONCURRENCY = 5;
 
-  while (queue.length && pages.length < maxPages) {
-    const url = queue.shift()!;
-    if (seen.has(url) || !allowed(url)) continue;
-    seen.add(url);
-
-    let page: CrawledPage | null = null;
-    let links: string[] = [];
-
-    if (firecrawlKey) page = await firecrawlScrape(url, firecrawlKey);
-    if (!page) {
-      const res = await fetchText(url);
-      if (!res || res.status >= 400 || !res.type.includes("text/html")) continue;
-      const parsed = htmlToPage(res.body, url);
-      links = parsed.links;
-      page = { url: parsed.url, title: parsed.title, description: parsed.description, markdown: parsed.markdown };
+  const fetchPage = async (url: string): Promise<{ page: CrawledPage | null; links: string[] }> => {
+    if (firecrawlKey) {
+      const page = await firecrawlScrape(url, firecrawlKey);
+      if (page) return { page, links: [] };
     }
+    const res = await fetchText(url);
+    if (!res || res.status >= 400 || !res.type.includes("text/html")) return { page: null, links: [] };
+    const parsed = htmlToPage(res.body, url);
+    return {
+      page: { url: parsed.url, title: parsed.title, description: parsed.description, markdown: parsed.markdown },
+      links: parsed.links,
+    };
+  };
 
-    // Skip near-empty pages and exact duplicates (e.g. tag archives)
-    if (page.markdown.length < 80 || seenHashes.has(page.markdown)) continue;
-    seenHashes.add(page.markdown);
-    pages.push(page);
-    opts.onPage?.(page);
+  // Fetch a few pages at a time: fast enough for a weekly crawl, gentle on small business hosting
+  while (queue.length && pages.length < maxPages) {
+    const batch: string[] = [];
+    while (queue.length && batch.length < CONCURRENCY) {
+      const url = queue.shift()!;
+      if (seen.has(url) || !allowed(url)) continue;
+      seen.add(url);
+      batch.push(url);
+    }
+    if (!batch.length) break;
 
-    for (const link of links) if (!seen.has(link) && allowed(link)) queue.push(link);
+    const results = await Promise.all(batch.map(fetchPage));
+    for (const { page, links } of results) {
+      for (const link of links) if (!seen.has(link) && allowed(link)) queue.push(link);
+      // Skip near-empty pages and exact duplicates (e.g. tag archives)
+      if (!page || page.markdown.length < 80 || seenHashes.has(page.markdown)) continue;
+      if (pages.length >= maxPages) break;
+      seenHashes.add(page.markdown);
+      pages.push(page);
+      opts.onPage?.(page);
+    }
   }
   return pages;
 }

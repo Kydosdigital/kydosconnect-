@@ -4,6 +4,9 @@ import { requireMembership } from "@/lib/tenancy";
 import { BusinessView } from "@/components/BusinessView";
 import { recrawl } from "../actions";
 
+// "Read website again" runs the crawl in the background after the response
+export const maxDuration = 300;
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const m = await requireMembership(slug);

@@ -86,9 +86,10 @@ export function buildServer(tenant: TenantContext, meta: RequestMeta): McpServer
     },
     logged(tenant, meta, "search_site", async ({ query, limit }: { query: string; limit?: number }) => {
       const vector = await embedOne(query);
-      const { data, error } = await db().rpc("match_chunks", {
+      const { data, error } = await db().rpc("search_chunks", {
         p_tenant_id: tenant.tenantId,
         p_query_embedding: toPgVector(vector),
+        p_query_text: query,
         p_match_count: limit ?? 5,
       });
       if (error) throw new Error(error.message);
