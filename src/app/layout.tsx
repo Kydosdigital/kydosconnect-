@@ -1,16 +1,23 @@
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata = {
-  title: "Kydos Connect",
-  description: "Connect your website to any AI assistant.",
+  title: { default: "Kydos Connect", template: "%s | Kydos Connect" },
+  description: "Connect your website to Claude, ChatGPT and other AI assistants.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en-GB">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: 0, padding: "48px 24px", maxWidth: 720, marginInline: "auto", lineHeight: 1.6 }}>
-        {children}
-      </body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600&display=swap"
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

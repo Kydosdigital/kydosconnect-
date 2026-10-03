@@ -67,8 +67,25 @@ Scripts read `.env.local` (copy `.env.example`).
 2. `npx @modelcontextprotocol/inspector`, transport "Streamable HTTP", URL `http://localhost:3000/api/mcp/<slug>`, header `Authorization: Bearer <key>`
 3. Or add the deployed URL as a custom connector in Claude: `https://<host>/api/mcp/<slug>?key=<key>`
 
+## Dashboard
+
+- Sign-in: Supabase magic link (`/login` → `/auth/callback`). `src/proxy.ts` (Next 16's replacement for middleware) refreshes sessions and guards `/dashboard`.
+- Every dashboard page and server action calls `requireMembership(slug)` before touching data.
+- `BusinessView` is presentational (no data fetching); `dashboard/[slug]/page.tsx` loads data and passes it in.
+- Design tokens live in `src/app/globals.css`. Bricolage Grotesque (headings), Schibsted Grotesk (text), JetBrains Mono only for values people copy. Signal green means "live"; cobalt is for actions. The connection "wire" is the one bold element: keep everything else quiet.
+
 ## Next up (Sprint 1 remainder)
 
-- Minimal dashboard: Supabase Auth login, add site, trigger crawl, copy MCP URL and key
 - Weekly re-crawl via Vercel Cron
+- Agency view: Kydos staff see all client businesses
 - 10 test questions per pilot site, record accuracy
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

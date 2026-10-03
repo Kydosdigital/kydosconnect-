@@ -13,7 +13,7 @@ Phase 1 (Read tier) foundation:
 - [x] Incremental ingestion: unchanged pages skipped by content hash
 - [x] Stateless MCP endpoint per tenant with `search_site`, `get_page`, `list_pages`, `get_business_info`
 - [x] Hashed API keys and per-call logging
-- [ ] Client dashboard
+- [x] Client dashboard: sign in, add a business, connect instructions, AI activity, business details
 - [ ] Scheduled re-crawls
 
 ## Getting started
