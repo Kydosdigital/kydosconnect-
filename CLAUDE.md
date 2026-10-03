@@ -72,7 +72,7 @@ Scripts read `.env.local` (copy `.env.example`).
 - Sign-in: Supabase magic link (`/login` → `/auth/callback`). `src/proxy.ts` (Next 16's replacement for middleware) refreshes sessions and guards `/dashboard`.
 - Every dashboard page and server action calls `requireMembership(slug)` before touching data.
 - `BusinessView` is presentational (no data fetching); `dashboard/[slug]/page.tsx` loads data and passes it in.
-- Design tokens live in `src/app/globals.css`. Bricolage Grotesque (headings), Schibsted Grotesk (text), JetBrains Mono only for values people copy. Signal green means "live"; cobalt is for actions. The connection "wire" is the one bold element: keep everything else quiet.
+- Design tokens live in `src/app/globals.css`. System font stack only (Stephen prefers standard fonts, no web fonts); system monospace only inside copy fields for keys and URLs. Signal green means "live"; cobalt is for actions. The connection "wire" is the one bold element: keep everything else quiet.
 
 ## Next up (Sprint 1 remainder)
 
