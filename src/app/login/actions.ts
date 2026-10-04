@@ -15,7 +15,7 @@ export async function sendMagicLink(_prev: LoginState, form: FormData): Promise<
 
   const h = await headers();
   const origin = h.get("origin") ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const supabase = await supabaseServer();
+  const supabase = await supabaseServer("implicit");
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {

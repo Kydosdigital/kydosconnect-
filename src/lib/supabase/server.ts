@@ -5,11 +5,15 @@ import { publicEnv } from "@/lib/env";
 /**
  * Supabase client bound to the signed-in user's session (anon key + cookies).
  * Use for auth only; data access goes through db() after a membership check.
+ *
+ * flowType "implicit" is used when sending sign-in emails: the link then works in
+ * whichever browser opens it (e.g. Gmail's built-in browser), not only the one that asked.
  */
-export async function supabaseServer() {
+export async function supabaseServer(flowType: "pkce" | "implicit" = "pkce") {
   const cookieStore = await cookies();
   const { url, anonKey } = publicEnv();
   return createServerClient(url, anonKey, {
+    auth: { flowType },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (toSet) => {
